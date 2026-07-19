@@ -1,12 +1,10 @@
 {
-  "installCommand": "pip install -r api/requirements.txt",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "echo skip-python-deps",
   "functions": {
     "api/chat.py": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "excludeFiles": "{dist/**,build/**,**/__pycache__/**}"
     }
-  },
-  "rewrites": [
-    { "source": "/api/chat", "destination": "/api/chat" },
-    { "source": "/", "destination": "/api/chat" }
-  ]
+  }
 }
