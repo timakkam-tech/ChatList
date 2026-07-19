@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
     QSpinBox,
     QTableWidget,
     QTableWidgetItem,
+    QTextBrowser,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -34,6 +35,31 @@ import export_util
 import models as models_svc
 import network
 from models import ModelInfo, TempResultsTable
+
+
+class MarkdownViewDialog(QDialog):
+    """Просмотр ответа модели с форматированием Markdown."""
+
+    def __init__(
+        self,
+        model_name: str,
+        markdown_text: str,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(f"Ответ: {model_name}")
+        self.resize(720, 560)
+
+        browser = QTextBrowser()
+        browser.setOpenExternalLinks(True)
+        browser.setMarkdown(markdown_text)
+
+        close_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        close_box.rejected.connect(self.reject)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(browser)
+        layout.addWidget(close_box)
 
 
 class SendWorker(QThread):
@@ -353,8 +379,10 @@ class MainWindow(QMainWindow):
         top_buttons.addWidget(results_btn)
         top_buttons.addWidget(settings_btn)
 
-        self.results_table = QTableWidget(0, 3)
-        self.results_table.setHorizontalHeaderLabels(["Модель", "Ответ", "Выбрать"])
+        self.results_table = QTableWidget(0, 4)
+        self.results_table.setHorizontalHeaderLabels(
+            ["Модель", "Ответ", "Открыть", "Выбрать"]
+        )
         self.results_table.horizontalHeader().setSectionResizeMode(
             0, QHeaderView.ResizeMode.ResizeToContents
         )
@@ -364,6 +392,14 @@ class MainWindow(QMainWindow):
         self.results_table.horizontalHeader().setSectionResizeMode(
             2, QHeaderView.ResizeMode.ResizeToContents
         )
+        self.results_table.horizontalHeader().setSectionResizeMode(
+            3, QHeaderView.ResizeMode.ResizeToContents
+        )
+        self.results_table.verticalHeader().setDefaultSectionSize(110)
+        self.results_table.verticalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Interactive
+        )
+        self.results_table.setWordWrap(True)
         self.results_table.setSortingEnabled(True)
 
         self.status_label = QLabel("Готово")
@@ -553,12 +589,27 @@ class MainWindow(QMainWindow):
         for i, row in enumerate(rows):
             name_item = QTableWidgetItem(row.model_name)
             name_item.setFlags(name_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            response_item = QTableWidgetItem(row.response)
-            response_item.setFlags(response_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            if row.error:
-                response_item.setForeground(Qt.GlobalColor.red)
+            name_item.setTextAlignment(
+                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
+            )
             self.results_table.setItem(i, 0, name_item)
-            self.results_table.setItem(i, 1, response_item)
+
+            response_edit = QTextEdit()
+            response_edit.setReadOnly(True)
+            response_edit.setPlainText(row.response)
+            response_edit.setMinimumHeight(100)
+            response_edit.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
+            if row.error:
+                response_edit.setStyleSheet("QTextEdit { color: red; }")
+            self.results_table.setCellWidget(i, 1, response_edit)
+            self.results_table.setRowHeight(i, 120)
+
+            open_btn = QPushButton("Открыть")
+            open_btn.setEnabled(bool(row.response.strip()))
+            open_btn.clicked.connect(
+                lambda _checked=False, index=i: self.open_response_markdown(index)
+            )
+            self.results_table.setCellWidget(i, 2, open_btn)
 
             checkbox = QCheckBox()
             checkbox.setChecked(row.selected)
@@ -571,8 +622,14 @@ class MainWindow(QMainWindow):
             box.addWidget(checkbox)
             box.setAlignment(Qt.AlignmentFlag.AlignCenter)
             box.setContentsMargins(0, 0, 0, 0)
-            self.results_table.setCellWidget(i, 2, wrapper)
+            self.results_table.setCellWidget(i, 3, wrapper)
         self.results_table.setSortingEnabled(True)
+
+    def open_response_markdown(self, index: int) -> None:
+        if index < 0 or index >= len(self.temp_results.rows):
+            return
+        row = self.temp_results.rows[index]
+        MarkdownViewDialog(row.model_name, row.response, self).exec()
 
     def open_models(self) -> None:
         ModelsDialog(self).exec()
