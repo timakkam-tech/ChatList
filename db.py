@@ -207,6 +207,21 @@ def list_models(db_path: Path | str | None = None) -> list[dict[str, Any]]:
         return [dict(r) for r in rows]
 
 
+def search_models(query: str, db_path: Path | str | None = None) -> list[dict[str, Any]]:
+    pattern = f"%{query}%"
+    with get_connection(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT id, name, api_url, api_key_env, is_active
+            FROM models
+            WHERE name LIKE ? OR api_url LIKE ? OR api_key_env LIKE ?
+            ORDER BY name
+            """,
+            (pattern, pattern, pattern),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
 def list_active_models(db_path: Path | str | None = None) -> list[dict[str, Any]]:
     with get_connection(db_path) as conn:
         rows = conn.execute(
@@ -216,6 +231,18 @@ def list_active_models(db_path: Path | str | None = None) -> list[dict[str, Any]
             """
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+def get_model_by_name(name: str, db_path: Path | str | None = None) -> dict[str, Any] | None:
+    with get_connection(db_path) as conn:
+        row = conn.execute(
+            """
+            SELECT id, name, api_url, api_key_env, is_active
+            FROM models WHERE name = ?
+            """,
+            (name,),
+        ).fetchone()
+        return _row_to_dict(row)
 
 
 def delete_model(model_id: int, db_path: Path | str | None = None) -> None:
@@ -264,6 +291,32 @@ def list_results(db_path: Path | str | None = None) -> list[dict[str, Any]]:
             JOIN models m ON m.id = r.model_id
             ORDER BY r.created_at DESC
             """
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def search_results(query: str, db_path: Path | str | None = None) -> list[dict[str, Any]]:
+    pattern = f"%{query}%"
+    with get_connection(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                r.id,
+                r.prompt_id,
+                r.model_id,
+                r.response,
+                r.created_at,
+                p.text AS prompt_text,
+                m.name AS model_name
+            FROM results r
+            JOIN prompts p ON p.id = r.prompt_id
+            JOIN models m ON m.id = r.model_id
+            WHERE r.response LIKE ?
+               OR p.text LIKE ?
+               OR m.name LIKE ?
+            ORDER BY r.created_at DESC
+            """,
+            (pattern, pattern, pattern),
         ).fetchall()
         return [dict(r) for r in rows]
 

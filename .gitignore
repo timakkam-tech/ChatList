@@ -161,6 +161,11 @@ venv.bak/
 chatlist.db
 *.db-journal
 
+# Request logs and local exports
+requests.log
+*.log
+
+
 # Spyder project settings
 .spyderproject
 .spyproject
