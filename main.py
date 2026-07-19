@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
@@ -386,6 +387,8 @@ class MainWindow(QMainWindow):
         if missing:
             names = ", ".join(sorted({m.api_key_env for m in missing}))
             self.status_label.setText(f"Нет ключей в .env: {names}")
+        elif (os.getenv("CHATLIST_PROXY_URL") or "").strip():
+            self.status_label.setText("Режим прокси Vercel")
 
     def reload_prompts(self) -> None:
         query = self.prompt_search.text().strip()

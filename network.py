@@ -1,19 +1,44 @@
-"""Отправка промтов к API нейросетей (адаптеры OpenAI / OpenRouter / DeepSeek / Groq)."""
+"""Отправка промтов к API нейросетей (адаптеры + прокси Vercel)."""
 
 from __future__ import annotations
 
+import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 from urllib.parse import urlparse
 
 import httpx
+from dotenv import load_dotenv
 
 import db
 import request_log
 from models import ModelInfo
 
 
+load_dotenv()
+
+
+def proxy_base_url() -> str | None:
+    raw = (os.getenv("CHATLIST_PROXY_URL") or "").strip().rstrip("/")
+    return raw or None
+
+
+def proxy_chat_url() -> str | None:
+    base = proxy_base_url()
+    if not base:
+        return None
+    if base.endswith("/api/chat"):
+        return base
+    return f"{base}/api/chat"
+
+
+def using_proxy() -> bool:
+    return proxy_chat_url() is not None
+
+
 def detect_provider(api_url: str) -> str:
+    if using_proxy():
+        return "openrouter_proxy"
     host = (urlparse(api_url).hostname or "").lower()
     if "openrouter.ai" in host:
         return "openrouter"
@@ -27,6 +52,13 @@ def detect_provider(api_url: str) -> str:
 
 
 def _build_headers(model: ModelInfo, provider: str) -> dict[str, str]:
+    if using_proxy():
+        headers = {"Content-Type": "application/json"}
+        secret = (os.getenv("CHATLIST_PROXY_SECRET") or "").strip()
+        if secret:
+            headers["X-ChatList-Proxy-Secret"] = secret
+        return headers
+
     headers = {
         "Authorization": f"Bearer {model.api_key}",
         "Content-Type": "application/json",
@@ -40,7 +72,6 @@ def _build_headers(model: ModelInfo, provider: str) -> dict[str, str]:
 
 
 def _build_body(model: ModelInfo, prompt: str, provider: str) -> dict[str, Any]:
-    # Все перечисленные провайдеры используют OpenAI-совместимый chat/completions.
     _ = provider
     return {
         "model": model.name,
@@ -52,6 +83,12 @@ def _extract_text(payload: Any) -> str:
     """Достаёт текст ответа из OpenAI-совместимого JSON."""
     if not isinstance(payload, dict):
         return str(payload)
+
+    if payload.get("error") and not payload.get("choices"):
+        err = payload["error"]
+        if isinstance(err, dict):
+            return str(err.get("message") or err)
+        return str(err)
 
     choices = payload.get("choices")
     if isinstance(choices, list) and choices:
@@ -82,21 +119,22 @@ def send_prompt_to_model(
     Отправляет промт в одну модель.
     Возвращает: {model_id, model_name, text, error, provider}.
     """
+    endpoint = proxy_chat_url() or model.api_url
+    provider = detect_provider(model.api_url)
     base = {
         "model_id": model.id,
         "model_name": model.name,
-        "provider": detect_provider(model.api_url),
+        "provider": provider,
     }
-    provider = base["provider"]
 
-    if not model.api_key:
+    if not using_proxy() and not model.api_key:
         text = (
             f"Не задан API-ключ для модели «{model.name}». "
-            f"Добавьте значение переменной {model.api_key_env} в файл .env и перезапустите приложение."
+            f"Добавьте {model.api_key_env} в .env или настройте CHATLIST_PROXY_URL."
         )
         request_log.log_request(
             model_name=model.name,
-            api_url=model.api_url,
+            api_url=endpoint,
             ok=False,
             detail=text,
             enabled=_logging_enabled(),
@@ -108,13 +146,23 @@ def send_prompt_to_model(
 
     try:
         with httpx.Client(timeout=timeout) as client:
-            response = client.post(model.api_url, headers=headers, json=body)
+            response = client.post(endpoint, headers=headers, json=body)
             response.raise_for_status()
             data = response.json()
+            if isinstance(data, dict) and data.get("error") and not data.get("choices"):
+                text = _extract_text(data)
+                request_log.log_request(
+                    model_name=model.name,
+                    api_url=endpoint,
+                    ok=False,
+                    detail=text,
+                    enabled=_logging_enabled(),
+                )
+                return {**base, "text": text, "error": True}
             text = _extract_text(data)
             request_log.log_request(
                 model_name=model.name,
-                api_url=model.api_url,
+                api_url=endpoint,
                 ok=True,
                 detail=f"provider={provider}; chars={len(text)}",
                 enabled=_logging_enabled(),
@@ -125,7 +173,7 @@ def send_prompt_to_model(
         text = f"HTTP {exc.response.status_code}: {detail}"
         request_log.log_request(
             model_name=model.name,
-            api_url=model.api_url,
+            api_url=endpoint,
             ok=False,
             detail=text,
             enabled=_logging_enabled(),
@@ -135,7 +183,7 @@ def send_prompt_to_model(
         text = f"Ошибка запроса: {exc}"
         request_log.log_request(
             model_name=model.name,
-            api_url=model.api_url,
+            api_url=endpoint,
             ok=False,
             detail=text,
             enabled=_logging_enabled(),

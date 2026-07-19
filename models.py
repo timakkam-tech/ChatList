@@ -56,6 +56,9 @@ class ModelInfo:
 
     @property
     def has_api_key(self) -> bool:
+        # При работе через Vercel-прокси ключ лежит на сервере.
+        if (os.getenv("CHATLIST_PROXY_URL") or "").strip():
+            return True
         return bool(self.api_key)
 
 

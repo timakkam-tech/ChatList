@@ -1,0 +1,22 @@
+# На Vercel нужен только API-прокси, не десктопный GUI.
+main.py
+db.py
+models.py
+network.py
+export_util.py
+request_log.py
+e2e_check.py
+chatlist.db
+*.db
+.env
+.venv
+venv
+dist
+build
+__pycache__
+*.spec
+*.log
+PROJECT.md
+PLAN.md
+DATABASE.md
+ChatList.spec

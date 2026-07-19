@@ -1,0 +1,12 @@
+{
+  "installCommand": "pip install -r api/requirements.txt",
+  "functions": {
+    "api/chat.py": {
+      "maxDuration": 60
+    }
+  },
+  "rewrites": [
+    { "source": "/api/chat", "destination": "/api/chat" },
+    { "source": "/", "destination": "/api/chat" }
+  ]
+}

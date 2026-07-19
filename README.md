@@ -25,10 +25,36 @@ python -m pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-Откройте `.env` и укажите ключ, например:
+Откройте `.env`. Если OpenRouter с вашего ПК недоступен — используйте прокси Vercel
+(см. раздел ниже). Иначе укажите ключ напрямую:
 
 ```env
 OPENROUTER_API_KEY=ваш_ключ
+```
+
+## Прокси Vercel (обход блокировки OpenRouter)
+
+Схема: **GUI и БД локально** → ваш сайт на Vercel → OpenRouter.
+
+1. Задеплойте этот репозиторий на Vercel.
+2. В Environment Variables проекта Vercel добавьте:
+   - `OPENROUTER_API_KEY` — ключ OpenRouter
+   - `CHATLIST_PROXY_SECRET` — любой секретный пароль
+   - опционально `OPENAI_BASE_URL=https://openrouter.ai/api/v1`
+3. После деплоя скопируйте URL проекта (например `https://chatlist-xxx.vercel.app`).
+4. В локальном `.env`:
+
+```env
+CHATLIST_PROXY_URL=https://chatlist-xxx.vercel.app
+CHATLIST_PROXY_SECRET=тот_же_секрет_что_на_vercel
+```
+
+Локальный `OPENROUTER_API_KEY` при этом **не обязателен**.
+
+5. Запуск как обычно:
+
+```powershell
+python main.py
 ```
 
 ## Запуск
