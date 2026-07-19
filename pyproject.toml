@@ -1,0 +1,9 @@
+[project]
+name = "chatlist-proxy"
+version = "0.1.0"
+description = "Vercel proxy for ChatList → OpenRouter"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.vercel]
+entrypoint = "api.index:handler"

@@ -1,10 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "echo skip-python-deps",
   "functions": {
-    "api/chat.py": {
-      "maxDuration": 60,
-      "excludeFiles": "{dist/**,build/**,**/__pycache__/**}"
+    "api/index.py": {
+      "maxDuration": 60
     }
-  }
+  },
+  "rewrites": [
+    { "source": "/api/chat", "destination": "/api" },
+    { "source": "/", "destination": "/api" }
+  ]
 }

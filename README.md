@@ -41,17 +41,7 @@ OPENROUTER_API_KEY=ваш_ключ
    - `OPENROUTER_API_KEY` — ключ OpenRouter
    - `CHATLIST_PROXY_SECRET` — любой секретный пароль
    - опционально `OPENAI_BASE_URL=https://openrouter.ai/api/v1`
-3. После деплоя скопируйте URL проекта (например `https://chatlist-xxx.vercel.app`).
-4. В локальном `.env`:
-
-```env
-CHATLIST_PROXY_URL=https://chatlist-xxx.vercel.app
-CHATLIST_PROXY_SECRET=тот_же_секрет_что_на_vercel
-```
-
-Локальный `OPENROUTER_API_KEY` при этом **не обязателен**.
-
-5. Запуск как обычно:
+3. После успеха откройте `https://ваш-проект.vercel.app/api` — должен быть JSON `{"ok": true, ...}`.
 
 ```powershell
 python main.py

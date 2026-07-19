@@ -1,4 +1,4 @@
-"""Vercel Python Function: прокси ChatList → OpenRouter (без сторонних пакетов)."""
+"""Vercel Python Function: прокси ChatList → OpenRouter."""
 
 from __future__ import annotations
 
@@ -53,7 +53,7 @@ class handler(BaseHTTPRequestHandler):
             {
                 "ok": True,
                 "service": "chatlist-proxy",
-                "usage": "POST /api/chat with {model, messages}",
+                "usage": "POST /api with {model, messages}",
             },
         )
 

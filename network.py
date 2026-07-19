@@ -27,9 +27,10 @@ def proxy_chat_url() -> str | None:
     base = proxy_base_url()
     if not base:
         return None
-    if base.endswith("/api/chat"):
+    # Поддерживаем оба варианта: /api (index.py) и старый /api/chat
+    if base.endswith("/api/chat") or base.endswith("/api"):
         return base
-    return f"{base}/api/chat"
+    return f"{base}/api"
 
 
 def using_proxy() -> bool:
